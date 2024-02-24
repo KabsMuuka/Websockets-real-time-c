@@ -9,47 +9,78 @@ const server = http.createServer(app);
 
 app.use(cors());
 
-const { MongoClient } = require("mongodb");
-const uri = "mongodb://localhost:27017/messages";
-const client = new MongoClient(uri);
+const Mysql = require("mysql2");
+const { error } = require("console");
 
-// const allMsgs = await storedMessages.find().toArray();
+const connection = Mysql.createConnection({
+  host: "localhost",
+  user: "root",
+  password: "code",
+  database: "messages",
+});
 
 //This binds socket.IO server to Undering http server,
 //thus allowing them to communicate effectively.
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: ["http://localhost:5173", "http://localhost:27017"],
     methods: ["GET", "POST"],
   },
 });
 
-const database = client.db("messages");
-const storedMessages = database.collection("storedMessages");
-
 io.on("connection", (socket) => {
   console.log(`someone connected ${socket.id}`);
 
-  socket.on("send_message", async (data) => {
+  socket.on("join_room", async (roomStatus) => {
     try {
-      await storedMessages.insertOne({ userMsg: data.message });
-    } catch (err) {
-      console.error("Error occurred while inserting message to database", err);
-    }
-
-    try {
-      const storedMsg = await storedMessages.find().toArray();
-
-      storedMsg.map((data) => {
-        socket.broadcast.emit("received_messages", { message: data.userMsg });
-        // console.log(data.userMsg);
-      });
+      socket.join(roomStatus);
     } catch (error) {
-      console.log(error);
+      console.log("failed to capture room status");
     }
-    //socket.broadcast.emit("received_message", data);
+  });
+
+  socket.on("send_message", (data) => {
+    connection.connect(() => {
+      const escape_socketID = connection.escape(socket.id);
+      const escapeMessage = connection.escape(data.message);
+      const insert_inTo_Msg = `INSERT INTO storeMessages(userMsg,user_socketID) VALUES (${escapeMessage}, ${escape_socketID})`;
+
+      connection.query(insert_inTo_Msg, (error, result) => {
+        if (error) return console.log("failed to log into database", error);
+        console.log("recored added to StoredMessgaes");
+      });
+    });
+
+    connection.connect((error) => {
+      if (error) {
+        console.log(error);
+      } else {
+        const storedMsg = "SELECT * FROM storeMessages";
+        connection.query(storedMsg, (error, results) => {
+          if (error) return console.error(error.message);
+
+          results.map((data) => {
+            // console.log(data.userMsg);
+            socket.broadcast.emit("received_messages", {
+              message: data.userMsg,
+            });
+          });
+        });
+      }
+    });
   });
 });
+
+// Define a route to fetch messages
+app.get("/messages", async (req, res) => {
+  connection.connect(() => {
+    const storedMessages = `SELECT * FROM storeMessages`;
+    connection.query(storedMessages, (error, results) => {
+      res.json({ messages: results });
+    });
+  });
+});
+
 server.listen(port, () => {
   console.log(`backend running on ${port}`);
 });
