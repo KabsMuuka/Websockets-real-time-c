@@ -16,13 +16,7 @@ function App() {
   };
 
   const SendMessage = () => {
-    socket.on("received_messages", () => {
-      if (userInput) {
-        socket.emit("send_message", { message: userInput, room });
-      } else {
-        alert("Type a message");
-      }
-    });
+    socket.emit("send_message", { message: userInput, room });
   };
 
   useEffect(() => {
