@@ -22,37 +22,35 @@ const io = new Server(server, {
 io.on("connection", (socket) => {
   console.log(`someone connected ${socket.id}`);
 
-  // socket.on("join_room", (roomStatus) => {
-  //   socket.join(roomStatus);
-  // });
-
-  con.connect((error) => {
-    if (error) {
-      console.log(error);
-    } else {
-      const storedMsg = "SELECT * FROM storeMessages";
-      con.query(storedMsg, (error, results) => {
-        if (error) return console.error(error.message);
-
-        results.map((data) => {
-          // console.log(data.userMsg);
-          socket.broadcast.emit("received_messages", {
-            message: data.userMsg,
-          });
-        });
-      });
-    }
+  socket.on("join_room", (roomStatus) => {
+    socket.join(roomStatus);
   });
 
   socket.on("send_message", (data) => {
-    con.connect(() => {
-      const escape_socketID = con.escape(socket.id);
-      const escapeMessage = con.escape(data.message);
-      const insert_inTo_Msg = `INSERT INTO storeMessages(userMsg,user_socketID) VALUES (${escapeMessage}, ${escape_socketID})`;
+    const escapeMessage = con.escape(data.message);
+    const escape_roomNuber = con.escape(data.room);
+    const insert_inTo_Msg = `INSERT INTO storeMessages(userMsg,room) VALUES (${escapeMessage}, ${escape_roomNuber})`;
 
-      con.query(insert_inTo_Msg, (error, result) => {
-        if (error) return console.log("failed to log into database", error);
-        console.log("recored added to StoredMessgaes");
+    con.query(insert_inTo_Msg, (error) => {
+      if (error) return console.log("failed to log into database", error);
+    });
+
+    const storedMsg = "SELECT * FROM storeMessages";
+    con.query(storedMsg, (error, results) => {
+      if (error) return console.error(error.message);
+
+      results.map((msg) => {
+        //if room exist only send msgs of that room
+        if (msg.room) {
+          //data has a property room
+          io.to(data.room).emit("received_messages", {
+            message: msg.userMsg,
+          });
+        } else {
+          socket.broadcast.emit("received_messages", {
+            message: msg.userMsg,
+          });
+        }
       });
     });
   });
