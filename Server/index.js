@@ -1,23 +1,14 @@
 const express = require("express");
-const { Server } = require("socket.io");
-const cors = require("cors");
-const port = 3000;
-
-const http = require("http");
 const app = express();
+const { Server } = require("socket.io");
+const port = 3001;
+const con = require("./db/db");
+
+const cors = require("cors");
+const http = require("http");
 const server = http.createServer(app);
 
 app.use(cors());
-
-const Mysql = require("mysql2");
-const { error } = require("console");
-
-const connection = Mysql.createConnection({
-  host: "localhost",
-  user: "root",
-  password: "code",
-  database: "messages",
-});
 
 //This binds socket.IO server to Undering http server,
 //thus allowing them to communicate effectively.
@@ -31,53 +22,49 @@ const io = new Server(server, {
 io.on("connection", (socket) => {
   console.log(`someone connected ${socket.id}`);
 
-  socket.on("join_room", async (roomStatus) => {
-    try {
-      socket.join(roomStatus);
-    } catch (error) {
-      console.log("failed to capture room status");
+  // socket.on("join_room", (roomStatus) => {
+  //   socket.join(roomStatus);
+  // });
+
+  con.connect((error) => {
+    if (error) {
+      console.log(error);
+    } else {
+      const storedMsg = "SELECT * FROM storeMessages";
+      con.query(storedMsg, (error, results) => {
+        if (error) return console.error(error.message);
+
+        results.map((data) => {
+          // console.log(data.userMsg);
+          socket.broadcast.emit("received_messages", {
+            message: data.userMsg,
+          });
+        });
+      });
     }
   });
 
   socket.on("send_message", (data) => {
-    connection.connect(() => {
-      const escape_socketID = connection.escape(socket.id);
-      const escapeMessage = connection.escape(data.message);
+    con.connect(() => {
+      const escape_socketID = con.escape(socket.id);
+      const escapeMessage = con.escape(data.message);
       const insert_inTo_Msg = `INSERT INTO storeMessages(userMsg,user_socketID) VALUES (${escapeMessage}, ${escape_socketID})`;
 
-      connection.query(insert_inTo_Msg, (error, result) => {
+      con.query(insert_inTo_Msg, (error, result) => {
         if (error) return console.log("failed to log into database", error);
         console.log("recored added to StoredMessgaes");
       });
-    });
-
-    connection.connect((error) => {
-      if (error) {
-        console.log(error);
-      } else {
-        const storedMsg = "SELECT * FROM storeMessages";
-        connection.query(storedMsg, (error, results) => {
-          if (error) return console.error(error.message);
-
-          results.map((data) => {
-            // console.log(data.userMsg);
-            socket.broadcast.emit("received_messages", {
-              message: data.userMsg,
-            });
-          });
-        });
-      }
     });
   });
 });
 
 // Define a route to fetch messages
-app.get("/messages", async (req, res) => {
-  connection.connect(() => {
-    const storedMessages = `SELECT * FROM storeMessages`;
-    connection.query(storedMessages, (error, results) => {
-      res.json({ messages: results });
-    });
+app.get("/messages", (req, res) => {
+  const sql = `SELECT * FROM storeMessages`;
+  con.query(sql, (error, results) => {
+    if (error) throw error;
+    res.json({ messages: results });
+    // res.status(200).json(results);
   });
 });
 

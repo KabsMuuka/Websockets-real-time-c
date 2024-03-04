@@ -1,29 +1,27 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 import io, { connect } from "socket.io-client";
+
 const socket = io.connect("http://localhost:3000");
 
 function App() {
   const [userInput, setUserInput] = useState("");
-
   //user can join specific room
   const [room, setRoom] = useState("");
-
   //passing a msg to from userInput to and variable
   const [message, setMessage] = useState([]);
+  //seting and storing userID
+  // const [userID, setUserID] = useState("");
 
-  const joinRoom = () => {
-    if (room != "") {
-      socket.emit("join_room", room);
-    }
-  };
+  // const joinRoom = () => {
+  //   socket.emit("join_room", room);
+  //   // console.log(room);
+  // };
 
   const SendMessage = () => {
-    // socket.on("received_messages", (socketID) => {
-    //   console.log(socketID);
-    // });
-
-    // console.log("button Clicked");
+    socket.on("received_messages", (socketID) => {
+      console.log(socketID);
+    });
     if (userInput != "" || room != "") {
       socket.emit("send_message", { message: userInput });
 
@@ -43,47 +41,43 @@ function App() {
     };
   }, [message]);
 
-  async function fetchPreviousMessages() {
-    try {
-      const response = await fetch("http://localhost:3000/messages");
-      const data = await response.json();
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const response = await fetch("http://localhost:3000/messages");
+        const data = await response.json();
 
-      //stored in the database
-      const database_socketIDs = data.messages.map(
-        (userIDs) => userIDs.user_socketID
-      );
-
-      const messageContents = data.messages //data.messages is an array of messages;
-        .map((msg) => msg.userMsg)
-        .join("\n");
-      setMessage([messageContents]);
-    } catch (error) {
-      console.log("Failed to Fetch msgs from the database", error);
+        const messageContents = data.messages //data.messages is an array of messages;
+          .map((msg) => msg.userMsg)
+          .join("\n \n");
+        setMessage([messageContents]);
+      } catch (error) {
+        console.log("Failed to Fetch msgs from the database", error);
+      }
     }
-  }
-  fetchPreviousMessages();
+    fetchData(); // Initiate data fetching on component mount
+  }, [message]); //Empty dependency array to run only once
 
   return (
     <>
-      <h1>Websockets </h1>
-      <label htmlFor="">
-        {" "}
-        Join Room
-        <input
+      {/* {userID &&
+        userID.messages.map((user_id, index) => {
+          return <ChatRoom key={index} storedID={user_id.user_socketID} />;
+        })} */}
+
+      {/* <input
           placeholder="Join Room"
           onChange={(e) => setRoom(e.target.value)}
         />
-        <button onClick={joinRoom()}> Join </button>
-      </label>
+        <button onClick={joinRoom}> Join </button> */}
+
       <input type="text" onChange={(e) => setUserInput(e.target.value)} />
       <button onClick={SendMessage}> Send</button>
 
       <h1>Message: </h1>
       <div className="message_container">
         {message.map((msg, index) => (
-          <pre className="message" key={index}>
-            {msg}
-          </pre>
+          <pre key={index}>{msg}</pre>
         ))}
       </div>
     </>
