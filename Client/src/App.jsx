@@ -44,7 +44,6 @@ function App() {
         const desiredMessags = messagesFilteredByRoom
           .map((msgs) => msgs.userMsg)
           .join("\n \n");
-
         // console.log(desiredMessags);
         setMessage([desiredMessags]);
       } catch (error) {
@@ -56,14 +55,24 @@ function App() {
 
   return (
     <>
-      <input
-        placeholder="Join Room"
-        onChange={(e) => setRoom(e.target.value)}
-      />
-      <button onClick={joinRoom}> Join </button>
+      <form action="">
+        <div>
+          <input
+            placeholder="Join Room"
+            onChange={(e) => setRoom(e.target.value)}
+          />
+          <button onClick={joinRoom}> Join </button>
+        </div>
 
-      <input type="text" onChange={(e) => setUserInput(e.target.value)} />
-      <button onClick={SendMessage}> Send</button>
+        <div>
+          <input
+            type="text"
+            placeholder="Type a message"
+            onChange={(e) => setUserInput(e.target.value)}
+          />
+          <button onClick={SendMessage}> Send</button>
+        </div>
+      </form>
 
       <h1>Message: </h1>
       <div className="message_container">
