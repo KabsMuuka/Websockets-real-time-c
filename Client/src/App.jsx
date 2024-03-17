@@ -11,7 +11,9 @@ function App() {
   //passing a msg to from userInput to and variable
   const [message, setMessage] = useState([]);
 
-  const joinRoom = () => {
+  const joinRoom = (e) => {
+    e.preventDefault();
+
     socket.emit("join_room", room);
   };
 
@@ -35,16 +37,17 @@ function App() {
         const data = await response.json();
         // console.log("data", data);
 
-        /* messagesFilteredByRoom check if msg.room is equal to room user has entered.
-        messagesFilteredByRoom contains messages that specific room*/
+        /* messagesFilteredByRoom filters messages according to the roomNumber 
+        checks if msg.room === room from use*/
 
         const messagesFilteredByRoom = data.messages.filter(
           (msg) => msg.room.toString() === room
         );
+
         const desiredMessags = messagesFilteredByRoom
           .map((msgs) => msgs.userMsg)
           .join("\n \n");
-        // console.log(desiredMessags);
+
         setMessage([desiredMessags]);
       } catch (error) {
         console.log("Failed to Fetch msgs from the database", error);
